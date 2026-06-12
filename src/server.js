@@ -18,5 +18,5 @@ app.get('/', (req, res) => {
 startMonitoring();
 
 app.listen(PORT, () => {
-    console.log(`🚀 Monitor rodando na porta http://localhost:${PORT}`);
+    console.log(`🚀 http://localhost:${PORT}`);
 });
