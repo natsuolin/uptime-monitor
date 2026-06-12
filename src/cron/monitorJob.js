@@ -4,7 +4,7 @@ const db = require('../config/database');
 
 function startMonitoring() {
     cron.schedule('* * * * *', () => {
-        console.log('🔄 Iniciando checagem de rotina dos sites...');
+        console.log('🔄 ...');
 
         db.all('SELECT * FROM sites', [], (err, rows) => {
             if (err) return console.error(err.message);
@@ -23,7 +23,7 @@ function startMonitoring() {
                     atualizarStatus(site, 'ONLINE', responseTime);
                 })
                 .catch(error => {
-                    // Caso o servidor não aceite o método HEAD (raro, mas acontece), tentamos um GET rápido
+                    
                     if (error.response && error.response.status === 405) {
                         axios.get(site.url, { timeout: 5000, headers: { 'User-Agent': 'UptimePulseBot/1.0' } })
                             .then(response => {
@@ -47,7 +47,7 @@ function startMonitoring() {
 function atualizarStatus(site, novoStatus, responseTime, errorMsg = '') {
     const agora = new Date().toISOString();
 
-    // 1. Atualiza o status atual do site no banco de dados
+   
     db.run(
         `UPDATE sites SET status = ?, last_checked = ? WHERE id = ?`,
         [novoStatus, agora, site.id],
