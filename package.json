@@ -1,0 +1,19 @@
+{
+  "name": "uptime-monitor",
+  "version": "1.0.0",
+  "description": "Micro-SaaS de Monitoramento de Uptime e Links",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3",
+    "sqlite3": "^5.1.7"
+  }
+}

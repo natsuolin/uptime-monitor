@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UptimePulse | Site Monitor</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container">
+            <span class="navbar-brand mb-0 h1"><i class="bi bi-activity me-2"></i>UptimePulse</span>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Add New Site to Monitor</h5>
+                <form id="form-add-site" class="row g-3">
+                    <div class="col-md-3">
+                        <input type="text" id="name" class="form-control" placeholder="Site Name (Ex: My Blog)" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="url" id="url" class="form-control" placeholder="https://example.com" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="url" id="webhook" class="form-control" placeholder="Webhook Discord/Telegram (Optional)">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-circle me-1"></i>Monitor</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-secondary">Monitored Sites</h5>
+                <div class="badge bg-dark fs-6">
+                    <i class="bi bi-arrow-clockwise me-1"></i> 
+                    Next Check: <span id="countdown">60</span>s
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Site</th>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th>Response Time</th>
+                            <th>Last Check</th>
+                            <th class="text-end">Option</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sites-table-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="detailsModalLabel"><i class="bi bi-graph-up me-2"></i>Availability History</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <strong>Site:</strong> <span id="modal-site-name" class="text-primary"></span><br>
+                        <strong>URL:</strong> <span id="modal-site-url" class="text-muted"></span>
+                    </div>
+                    <h6 class="text-secondary border-bottom pb-2">Last 10 Fact Checks</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th>Response Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-logs-body">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const tableBody = document.getElementById('sites-table-body');
+        const form = document.getElementById('form-add-site');
+        
+        let detailsModal = null;
+        window.addEventListener('DOMContentLoaded', () => {
+            const modalEl = document.getElementById('detailsModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                detailsModal = new bootstrap.Modal(modalEl);
+            }
+        });
+
+        async function fetchSites() {
+            try {
+                const res = await fetch('/api/sites');
+                const sites = await res.json();
+                tableBody.innerHTML = '';
+
+                if (sites.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No websites registered yet.</td></tr>';
+                    return;
+                }
+
+                sites.forEach(site => {
+                    let statusBadge = '<span class="badge bg-warning text-dark">Pending</span>';
+                    if (site.status === 'ONLINE') statusBadge = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Online</span>';
+                    if (site.status === 'OFFLINE') statusBadge = '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Offline</span>';
+
+                    const responseTime = site.last_response_time ? `${site.last_response_time}ms` : '-';
+                    const lastChecked = site.last_checked ? new Date(site.last_checked).toLocaleTimeString() : 'Waiting...';
+
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td><strong>${site.name}</strong></td>
+                            <td><a href="${site.url}" target="_blank" class="text-decoration-none">${site.url}</a></td>
+                            <td>${statusBadge}</td>
+                            <td><i class="bi bi-stopwatch text-muted me-1"></i>${responseTime}</td>
+                            <td>${lastChecked}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="showDetails(${site.id}, '${site.name}', '${site.url}')" title="View History">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteSite(${site.id})" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                console.error("Error searching websites:", error);
+            }
+        }
+
+        async function showDetails(id, name, url) {
+            document.getElementById('modal-site-name').innerText = name;
+            document.getElementById('modal-site-url').innerText = url;
+            
+            const logsBody = document.getElementById('modal-logs-body');
+            logsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Loading history...</td></tr>';
+            
+            if (detailsModal) detailsModal.show();
+
+            try {
+                const res = await fetch(`/api/sites/${id}/logs`);
+                const logs = await res.json();
+                logsBody.innerHTML = '';
+
+                if (logs.length === 0) {
+                    logsBody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No logs have been registered yet.</td></tr>';
+                    return;
+                }
+
+                logs.forEach(log => {
+                    const badge = log.status === 'ONLINE' ? '<span class="badge bg-success-subtle text-success">Online</span>' : '<span class="badge bg-danger-subtle text-danger">Offline</span>';
+                    const hora = new Date(log.checked_at).toLocaleString();
+                    
+                    logsBody.innerHTML += `
+                        <tr>
+                            <td>${hora}</td>
+                            <td>${badge}</td>
+                            <td>${log.response_time}ms</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                logsBody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error loading history.</td></tr>';
+            }
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const url = document.getElementById('url').value;
+            const webhook_url = document.getElementById('webhook').value;
+
+            await fetch('/api/sites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, url, webhook_url })
+            });
+
+            form.reset();
+            fetchSites();
+        });
+
+        async function deleteSite(id) {
+            if (confirm('Do you want to stop monitoring this website?')) {
+                await fetch(`/api/sites/${id}`, { method: 'DELETE' });
+                fetchSites();
+            }
+        }
+
+        function iniciarTimerSincronizado() {
+            setInterval(() => {
+                const countdownElement = document.getElementById('countdown');
+                const agora = new Date();
+                const segundosPassados = agora.getSeconds();
+                const tempoRestante = 60 - segundosPassados;
+                
+                if (countdownElement) {
+                    countdownElement.innerText = tempoRestante;
+                    
+                    if (tempoRestante === 60) {
+                        const badgeContainer = countdownElement.parentElement;
+                        badgeContainer.classList.replace('bg-dark', 'bg-warning');
+                        badgeContainer.classList.add('text-dark');
+                        
+                        setTimeout(() => {
+                            fetchSites();
+                            badgeContainer.classList.replace('bg-warning', 'bg-dark');
+                            badgeContainer.classList.remove('text-dark');
+                        }, 2000); 
+                    }
+                }
+            }, 1000);
+        }
+
+        fetchSites();
+        iniciarTimerSincronizado();
+    </script>
+</body>
+</html>
